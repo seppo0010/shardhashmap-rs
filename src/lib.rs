@@ -13,6 +13,15 @@ use std::sync::RwLock;
 mod hasher;
 use hasher::Md5Hasher;
 
+macro_rules! hashmap_write {
+    ($shm: expr, $k: expr) => {
+        match $shm.shards[$shm.bucket_index(&$k)].write() {
+            Ok(shard) => shard,
+            Err(poison_err) => poison_err.into_inner(),
+        }
+    }
+}
+
 pub struct ShardHashMap<K, V> {
     shards: Vec<RwLock<HashMap<K, V>>>,
 }
@@ -89,11 +98,7 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
     }
 
     pub fn insert(&mut self, k: K, v: V) -> Option<V> {
-        let mut shard = match self.shards[self.bucket_index(&k)].write() {
-            Ok(shard) => shard,
-            Err(poison_err) => poison_err.into_inner(),
-        };
-        shard.insert(k, v)
+        hashmap_write!(self, k).insert(k, v)
     }
 
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> { unimplemented!(); }
