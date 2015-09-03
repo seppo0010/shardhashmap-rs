@@ -106,7 +106,7 @@ impl<K, V> Debug for ShardHashMap<K, V> where K: Eq + Hash + Debug, V: Debug {
     }
 }
 
-impl<'a, K, V> IntoIterator for &'a ShardHashMap<K, V> where K: Eq + Hash {
+impl<'a, K: 'a, V: 'a> IntoIterator for &'a ShardHashMap<K, V> where K: Eq + Hash {
     type Item = (&'a K, &'a V);
     type IntoIter = Iter<'a, K, V>;
 
@@ -115,7 +115,7 @@ impl<'a, K, V> IntoIterator for &'a ShardHashMap<K, V> where K: Eq + Hash {
     }
 }
 
-impl<'a, K, V> IntoIterator for &'a mut ShardHashMap<K, V> where K: Eq + Hash {
+impl<'a, K: 'a, V: 'a> IntoIterator for &'a mut ShardHashMap<K, V> where K: Eq + Hash {
     type Item = (&'a K, &'a mut V);
     type IntoIter = IterMut<'a, K, V>;
 
@@ -170,7 +170,7 @@ impl<K, V> Clone for ShardHashMap<K, V> {
 
 pub struct Iter<'a, K: 'a, V> { k: PhantomData<&'a K>, v: PhantomData<V>, }
 
-impl<'a, K, V> Iterator for Iter<'a, K, V> {
+impl<'a, K: 'a, V: 'a> Iterator for Iter<'a, K, V> {
     type Item = (&'a K, &'a V);
     fn next(&mut self) -> Option<(&'a K, &'a V)> {
         unimplemented!();
@@ -180,7 +180,7 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
     }
 }
 
-impl<'a, K, V> Clone for Iter<'a, K, V> {
+impl<'a, K: 'a, V: 'a> Clone for Iter<'a, K, V> {
     fn clone(&self) -> Iter<'a, K, V> {
         unimplemented!();
     }
@@ -189,7 +189,7 @@ impl<'a, K, V> Clone for Iter<'a, K, V> {
     }
 }
 
-impl<'a, K, V> ExactSizeIterator for Iter<'a, K, V> {
+impl<'a, K: 'a, V: 'a> ExactSizeIterator for Iter<'a, K, V> {
     fn len(&self) -> usize {
         unimplemented!();
     }
@@ -197,7 +197,7 @@ impl<'a, K, V> ExactSizeIterator for Iter<'a, K, V> {
 
 pub struct IterMut<'a, K: 'a, V> { k: PhantomData<&'a K>, v: PhantomData<V>, }
 
-impl<'a, K, V> Iterator for IterMut<'a, K, V> {
+impl<'a, K: 'a, V: 'a> Iterator for IterMut<'a, K, V> {
     type Item = (&'a K, &'a mut V);
     fn next(&mut self) -> Option<(&'a K, &'a mut V)> {
         unimplemented!();
@@ -207,7 +207,7 @@ impl<'a, K, V> Iterator for IterMut<'a, K, V> {
     }
 }
 
-impl<'a, K, V> ExactSizeIterator for IterMut<'a, K, V> {
+impl<'a, K: 'a, V: 'a> ExactSizeIterator for IterMut<'a, K, V> {
     fn len(&self) -> usize {
         unimplemented!();
     }
