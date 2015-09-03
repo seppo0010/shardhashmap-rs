@@ -1,3 +1,5 @@
+extern crate md5;
+
 use std::borrow::Borrow;
 use std::cmp::Eq;
 use std::collections::HashMap;
@@ -7,6 +9,9 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::ops::Index;
 use std::sync::RwLock;
+
+mod hasher;
+use hasher::Md5Hasher;
 
 pub struct ShardHashMap<K, V> {
     shards: Vec<RwLock<HashMap<K, V>>>,
