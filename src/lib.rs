@@ -64,12 +64,24 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
             shard.shrink_to_fit();
         }
     }
+
+    pub fn len(&self) -> usize {
+        let mut len = 0;
+        for s in self.shards.iter() {
+            let shard = match s.read() {
+                Ok(shard) => shard,
+                Err(poison_err) => poison_err.into_inner(),
+            };
+            len += shard.len();
+        }
+        len
+    }
+
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> { unimplemented!(); }
     pub fn values<'a>(&'a self) -> Values<'a, K, V> { unimplemented!(); }
     pub fn iter(&self) -> Iter<K, V> { unimplemented!(); }
     pub fn iter_mut(&mut self) -> IterMut<K, V> { unimplemented!(); }
     pub fn entry(&mut self, key: K) -> Entry<K, V> { unimplemented!(); }
-    pub fn len(&self) -> usize { unimplemented!(); }
     pub fn is_empty(&self) -> bool { unimplemented!(); }
     pub fn drain(&mut self) -> Drain<K, V> { unimplemented!(); }
     pub fn clear(&mut self) { unimplemented!(); }
@@ -244,4 +256,11 @@ fn shrink_to_fit() {
     assert!(pre >= 10);
     hm.shrink_to_fit();
     assert!(hm.capacity() < pre);
+}
+
+#[test]
+fn len() {
+    let hm = ShardHashMap::<u8, u8>::with_capacity(10, 10);
+    assert_eq!(hm.len(), 0);
+    // FIXME add items
 }
