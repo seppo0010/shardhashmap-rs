@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
-use std::hash::Hash;
+use std::hash::{Hash,Hasher};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::ops::Index;
@@ -82,6 +82,20 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
         len
     }
 
+    fn bucket_index(&self, k: &K) -> usize {
+        let mut bucket = Md5Hasher::new();
+        k.hash(&mut bucket);
+        (bucket.finish() as usize) % self.shards.len()
+    }
+
+    pub fn insert(&mut self, k: K, v: V) -> Option<V> {
+        let mut shard = match self.shards[self.bucket_index(&k)].write() {
+            Ok(shard) => shard,
+            Err(poison_err) => poison_err.into_inner(),
+        };
+        shard.insert(k, v)
+    }
+
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> { unimplemented!(); }
     pub fn values<'a>(&'a self) -> Values<'a, K, V> { unimplemented!(); }
     pub fn iter(&self) -> Iter<K, V> { unimplemented!(); }
@@ -93,7 +107,6 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
     pub fn get<Q: ?Sized>(&self, k: &Q) -> Option<&V> where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
     pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> bool where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
     pub fn get_mut<Q: ?Sized>(&mut self, k: &Q) -> Option<&mut V> where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
-    pub fn insert(&mut self, k: K, v: V) -> Option<V> { unimplemented!(); }
     pub fn remove<Q: ?Sized>(&mut self, k: &Q) -> Option<V> where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
 }
 
@@ -265,7 +278,18 @@ fn shrink_to_fit() {
 
 #[test]
 fn len() {
-    let hm = ShardHashMap::<u8, u8>::with_capacity(10, 10);
+    let mut hm = ShardHashMap::<u8, u8>::with_capacity(10, 10);
     assert_eq!(hm.len(), 0);
-    // FIXME add items
+    hm.insert(1, 1);
+    assert_eq!(hm.len(), 1);
+    hm.insert(2, 2);
+    assert_eq!(hm.len(), 2);
+}
+
+#[test]
+fn insert() {
+    let mut hm = ShardHashMap::<u8, u8>::with_capacity(10, 10);
+    assert!(hm.insert(1, 1).is_none());
+    assert_eq!(hm.insert(1, 2).unwrap(), 1);
+    assert_eq!(hm.insert(1, 3).unwrap(), 2);
 }
