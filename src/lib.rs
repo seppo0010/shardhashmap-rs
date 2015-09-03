@@ -44,6 +44,16 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
             shard.reserve(r)
         }
     }
+
+    pub fn shrink_to_fit(&self) {
+        for s in self.shards.iter() {
+            let mut shard = match s.write() {
+                Ok(shard) => shard,
+                Err(poison_err) => poison_err.into_inner(),
+            };
+            shard.shrink_to_fit();
+        }
+    }
 }
 
 #[test]
@@ -62,4 +72,13 @@ fn reserve() {
     assert!(hm.capacity() < 1000);
     hm.reserve(990);
     assert!(hm.capacity() >= 1000);
+}
+
+#[test]
+fn shrink_to_fit() {
+    let hm = ShardHashMap::<u8, u8>::with_capacity(10, 1000);
+    let pre = hm.capacity();
+    assert!(pre >= 10);
+    hm.shrink_to_fit();
+    assert!(hm.capacity() < pre);
 }
