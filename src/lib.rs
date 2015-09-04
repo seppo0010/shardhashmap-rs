@@ -277,7 +277,7 @@ impl<K, V> Extend<(K, V)> for ShardHashMap<K, V> where K: Eq + Hash {
 
 impl<'a, K, V> Extend<(&'a K, &'a V)> for ShardHashMap<K, V> where K: Eq + Hash + Copy, V: Copy {
     fn extend<T: IntoIterator<Item=(&'a K, &'a V)>>(&mut self, iter: T) {
-        unimplemented!();
+        self.extend(iter.into_iter().map(|(&key, &value)| (key, value)));
     }
 }
 
@@ -447,6 +447,15 @@ fn remove() {
 fn extend() {
     let mut hm = ShardHashMap::<u8, u8>::with_capacity(10, 10);
     hm.extend(vec![(1, 1)]);
+    assert_eq!(hm.len(), 1);
+    let k = 1;
+    assert_eq!(*hm.get(&k).unwrap(), 1);
+}
+
+#[test]
+fn extend2() {
+    let mut hm = ShardHashMap::<u8, u8>::with_capacity(10, 10);
+    hm.extend(vec![(&1, &1)]);
     assert_eq!(hm.len(), 1);
     let k = 1;
     assert_eq!(*hm.get(&k).unwrap(), 1);
