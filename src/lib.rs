@@ -7,18 +7,50 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash,Hasher};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
-use std::ops::Index;
-use std::sync::RwLock;
+use std::ops::{Deref, Index};
+use std::sync::{RwLock, RwLockReadGuard};
 
 mod hasher;
 use hasher::Md5Hasher;
 
-macro_rules! hashmap_write {
+macro_rules! hashmap_read {
     ($shm: expr, $k: expr) => {
-        match $shm.shards[$shm.bucket_index(&$k)].write() {
+        match $shm.shards[$shm.bucket_index($k)].read() {
             Ok(shard) => shard,
             Err(poison_err) => poison_err.into_inner(),
         }
+    }
+}
+
+macro_rules! hashmap_write {
+    ($shm: expr, $k: expr) => {
+        match $shm.shards[$shm.bucket_index($k)].write() {
+            Ok(shard) => shard,
+            Err(poison_err) => poison_err.into_inner(),
+        }
+    }
+}
+
+pub struct BorrowedValue<'a, K: 'a, V: 'a> {
+    guard: RwLockReadGuard<'a, HashMap<K, V>>,
+    key: &'a K,
+}
+
+impl<'a, K: 'a + Eq + Hash, V: 'a> BorrowedValue<'a, K, V> {
+    fn new(guard: RwLockReadGuard<'a, HashMap<K, V>>, key: &'a K) -> Option<Self> {
+        if guard.contains_key(key) {
+            Some(BorrowedValue { guard: guard, key: key })
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, K: 'a + Eq + Hash, V: 'a> Deref for BorrowedValue<'a, K, V> {
+    type Target = V;
+
+    fn deref<'b>(&'b self) -> &'b V {
+        self.guard.get(self.key).unwrap()
     }
 }
 
@@ -98,7 +130,12 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
     }
 
     pub fn insert(&mut self, k: K, v: V) -> Option<V> {
-        hashmap_write!(self, k).insert(k, v)
+        hashmap_write!(self, &k).insert(k, v)
+    }
+
+    pub fn get<'a>(&'a self, k: &'a K) -> Option<BorrowedValue<'a, K, V>> {
+        let bucket = hashmap_read!(self, &k);
+        BorrowedValue::new(bucket, k)
     }
 
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> { unimplemented!(); }
@@ -109,7 +146,6 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
     pub fn is_empty(&self) -> bool { unimplemented!(); }
     pub fn drain(&mut self) -> Drain<K, V> { unimplemented!(); }
     pub fn clear(&mut self) { unimplemented!(); }
-    pub fn get<Q: ?Sized>(&self, k: &Q) -> Option<&V> where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
     pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> bool where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
     pub fn get_mut<Q: ?Sized>(&mut self, k: &Q) -> Option<&mut V> where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
     pub fn remove<Q: ?Sized>(&mut self, k: &Q) -> Option<V> where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
@@ -297,4 +333,12 @@ fn insert() {
     assert!(hm.insert(1, 1).is_none());
     assert_eq!(hm.insert(1, 2).unwrap(), 1);
     assert_eq!(hm.insert(1, 3).unwrap(), 2);
+}
+
+#[test]
+fn get() {
+    let mut hm = ShardHashMap::<u8, u8>::with_capacity(10, 10);
+    assert!(hm.insert(1, 1).is_none());
+    let k = 1;
+    assert_eq!(*hm.get(&k).unwrap(), 1);
 }
