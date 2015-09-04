@@ -200,13 +200,16 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
         bucket.contains_key(k)
     }
 
+    pub fn remove(&mut self, k: &K) -> Option<V> {
+        hashmap_write!(self, k).remove(k)
+    }
+
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> { unimplemented!(); }
     pub fn values<'a>(&'a self) -> Values<'a, K, V> { unimplemented!(); }
     pub fn iter(&self) -> Iter<K, V> { unimplemented!(); }
     pub fn iter_mut(&mut self) -> IterMut<K, V> { unimplemented!(); }
     pub fn entry(&mut self, key: K) -> Entry<K, V> { unimplemented!(); }
     pub fn drain(&mut self) -> Drain<K, V> { unimplemented!(); }
-    pub fn remove<Q: ?Sized>(&mut self, k: &Q) -> Option<V> where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
 }
 
 impl<K, V> PartialEq for ShardHashMap<K, V> where K: Eq + Hash, V: PartialEq {
@@ -427,4 +430,13 @@ fn contains_key() {
     assert!(hm.insert(1, 1).is_none());
     assert!(hm.contains_key(&1));
     assert!(!hm.contains_key(&2));
+}
+
+#[test]
+fn remove() {
+    let mut hm = ShardHashMap::<u8, u8>::with_capacity(10, 10);
+    assert!(hm.insert(1, 1).is_none());
+    assert_eq!(hm.remove(&1), Some(1));
+    assert_eq!(hm.remove(&1), None);
+    assert_eq!(hm.remove(&2), None);
 }
