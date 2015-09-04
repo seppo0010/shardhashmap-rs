@@ -269,7 +269,9 @@ impl<K, V> FromIterator<(K, V)> for ShardHashMap<K, V> where K: Eq + Hash {
 
 impl<K, V> Extend<(K, V)> for ShardHashMap<K, V> where K: Eq + Hash {
     fn extend<T: IntoIterator<Item=(K, V)>>(&mut self, iter: T) {
-        unimplemented!();
+        for (k, v) in iter {
+            self.insert(k, v);
+        }
     }
 }
 
@@ -439,4 +441,13 @@ fn remove() {
     assert_eq!(hm.remove(&1), Some(1));
     assert_eq!(hm.remove(&1), None);
     assert_eq!(hm.remove(&2), None);
+}
+
+#[test]
+fn extend() {
+    let mut hm = ShardHashMap::<u8, u8>::with_capacity(10, 10);
+    hm.extend(vec![(1, 1)]);
+    assert_eq!(hm.len(), 1);
+    let k = 1;
+    assert_eq!(*hm.get(&k).unwrap(), 1);
 }
