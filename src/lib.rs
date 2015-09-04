@@ -7,8 +7,8 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash,Hasher};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
-use std::ops::{Deref, Index};
-use std::sync::{RwLock, RwLockReadGuard};
+use std::ops::{Deref, DerefMut, Index};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 mod hasher;
 use hasher::Md5Hasher;
@@ -51,6 +51,35 @@ impl<'a, K: 'a + Eq + Hash, V: 'a> Deref for BorrowedValue<'a, K, V> {
 
     fn deref<'b>(&'b self) -> &'b V {
         self.guard.get(self.key).unwrap()
+    }
+}
+
+pub struct BorrowedMutValue<'a, K: 'a, V: 'a> {
+    guard: RwLockWriteGuard<'a, HashMap<K, V>>,
+    key: &'a K,
+}
+
+impl<'a, K: 'a + Eq + Hash, V: 'a> BorrowedMutValue<'a, K, V> {
+    fn new(guard: RwLockWriteGuard<'a, HashMap<K, V>>, key: &'a K) -> Option<Self> {
+        if guard.contains_key(key) {
+            Some(BorrowedMutValue { guard: guard, key: key })
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, K: 'a + Eq + Hash, V: 'a> Deref for BorrowedMutValue<'a, K, V> {
+    type Target = V;
+
+    fn deref<'b>(&'b self) -> &'b V {
+        self.guard.get(self.key).unwrap()
+    }
+}
+
+impl<'a, K: 'a + Eq + Hash, V: 'a> DerefMut for BorrowedMutValue<'a, K, V> {
+    fn deref_mut<'b>(&'b mut self) -> &'b mut V {
+        self.guard.get_mut(self.key).unwrap()
     }
 }
 
@@ -138,6 +167,11 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
         BorrowedValue::new(bucket, k)
     }
 
+    pub fn get_mut<'a>(&'a mut self, k: &'a K) -> Option<BorrowedMutValue<'a, K, V>> {
+        let bucket = hashmap_write!(self, &*k);
+        BorrowedMutValue::new(bucket, k)
+    }
+
     pub fn is_empty(&self) -> bool {
         for s in self.shards.iter() {
             let shard = match s.read() {
@@ -168,7 +202,6 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
     pub fn entry(&mut self, key: K) -> Entry<K, V> { unimplemented!(); }
     pub fn drain(&mut self) -> Drain<K, V> { unimplemented!(); }
     pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> bool where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
-    pub fn get_mut<Q: ?Sized>(&mut self, k: &Q) -> Option<&mut V> where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
     pub fn remove<Q: ?Sized>(&mut self, k: &Q) -> Option<V> where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
 }
 
@@ -370,4 +403,16 @@ fn is_empty() {
     assert!(hm.is_empty());
     assert!(hm.insert(1, 1).is_none());
     assert!(!hm.is_empty());
+}
+
+#[test]
+fn get_mut() {
+    let mut hm = ShardHashMap::<u8, u8>::with_capacity(10, 10);
+    assert!(hm.insert(1, 1).is_none());
+    let k = 1;
+    {
+        let mut v = hm.get_mut(&k).unwrap();
+        *v = 2;
+    }
+    assert_eq!(*hm.get(&k).unwrap(), 2);
 }
