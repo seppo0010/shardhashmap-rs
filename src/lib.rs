@@ -138,12 +138,24 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
         BorrowedValue::new(bucket, k)
     }
 
+    pub fn is_empty(&self) -> bool {
+        for s in self.shards.iter() {
+            let shard = match s.read() {
+                Ok(shard) => shard,
+                Err(poison_err) => poison_err.into_inner(),
+            };
+            if !shard.is_empty() {
+                return false
+            }
+        }
+        true
+    }
+
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> { unimplemented!(); }
     pub fn values<'a>(&'a self) -> Values<'a, K, V> { unimplemented!(); }
     pub fn iter(&self) -> Iter<K, V> { unimplemented!(); }
     pub fn iter_mut(&mut self) -> IterMut<K, V> { unimplemented!(); }
     pub fn entry(&mut self, key: K) -> Entry<K, V> { unimplemented!(); }
-    pub fn is_empty(&self) -> bool { unimplemented!(); }
     pub fn drain(&mut self) -> Drain<K, V> { unimplemented!(); }
     pub fn clear(&mut self) { unimplemented!(); }
     pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> bool where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
@@ -341,4 +353,12 @@ fn get() {
     assert!(hm.insert(1, 1).is_none());
     let k = 1;
     assert_eq!(*hm.get(&k).unwrap(), 1);
+}
+
+#[test]
+fn is_empty() {
+    let mut hm = ShardHashMap::<u8, u8>::with_capacity(10, 10);
+    assert!(hm.is_empty());
+    assert!(hm.insert(1, 1).is_none());
+    assert!(!hm.is_empty());
 }
