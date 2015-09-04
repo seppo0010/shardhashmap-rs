@@ -151,13 +151,22 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
         true
     }
 
+    pub fn clear(&mut self) {
+        for s in self.shards.iter() {
+            let mut shard = match s.write() {
+                Ok(shard) => shard,
+                Err(poison_err) => poison_err.into_inner(),
+            };
+            shard.clear();
+        }
+    }
+
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> { unimplemented!(); }
     pub fn values<'a>(&'a self) -> Values<'a, K, V> { unimplemented!(); }
     pub fn iter(&self) -> Iter<K, V> { unimplemented!(); }
     pub fn iter_mut(&mut self) -> IterMut<K, V> { unimplemented!(); }
     pub fn entry(&mut self, key: K) -> Entry<K, V> { unimplemented!(); }
     pub fn drain(&mut self) -> Drain<K, V> { unimplemented!(); }
-    pub fn clear(&mut self) { unimplemented!(); }
     pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> bool where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
     pub fn get_mut<Q: ?Sized>(&mut self, k: &Q) -> Option<&mut V> where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
     pub fn remove<Q: ?Sized>(&mut self, k: &Q) -> Option<V> where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
