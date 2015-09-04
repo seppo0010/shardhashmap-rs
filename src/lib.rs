@@ -195,13 +195,17 @@ impl<K, V> ShardHashMap<K, V> where K: Eq + Hash {
         }
     }
 
+    pub fn contains_key(&self, k: &K) -> bool {
+        let bucket = hashmap_read!(self, k);
+        bucket.contains_key(k)
+    }
+
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> { unimplemented!(); }
     pub fn values<'a>(&'a self) -> Values<'a, K, V> { unimplemented!(); }
     pub fn iter(&self) -> Iter<K, V> { unimplemented!(); }
     pub fn iter_mut(&mut self) -> IterMut<K, V> { unimplemented!(); }
     pub fn entry(&mut self, key: K) -> Entry<K, V> { unimplemented!(); }
     pub fn drain(&mut self) -> Drain<K, V> { unimplemented!(); }
-    pub fn contains_key<Q: ?Sized>(&self, k: &Q) -> bool where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
     pub fn remove<Q: ?Sized>(&mut self, k: &Q) -> Option<V> where K: Borrow<Q>, Q: Hash + Eq { unimplemented!(); }
 }
 
@@ -415,4 +419,12 @@ fn get_mut() {
         *v = 2;
     }
     assert_eq!(*hm.get(&k).unwrap(), 2);
+}
+
+#[test]
+fn contains_key() {
+    let mut hm = ShardHashMap::<u8, u8>::with_capacity(10, 10);
+    assert!(hm.insert(1, 1).is_none());
+    assert!(hm.contains_key(&1));
+    assert!(!hm.contains_key(&2));
 }
